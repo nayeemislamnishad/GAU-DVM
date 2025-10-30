@@ -1,0 +1,290 @@
+<!--
+Batch Notes Website (Single-file static site)
+
+How to use (quick):
+1) Place this file (index.html) on your web server (or open locally).
+2) Create folders for PDFs under /assets/pdfs/<course-slug>/
+   Example structure:
+     /assets/pdfs/anatomy/lecture1.pdf
+     /assets/pdfs/anatomy/practical-sheet-1.pdf
+3) Edit the `filesData` array below (or create a separate JSON file and point to it) to list PDFs.
+   Each item: { course: "Anatomy", title: "Lecture 1 - Bones", filename: "lecture1.pdf", type: "Lecture" }
+   The site uses course slug + filename to build the download link: assets/pdfs/<slug>/<filename>
+
+Notes:
+- You will upload PDFs manually to the appropriate folders on your hosting server.
+- To add/remove files, update the `filesData` array in the script or maintain a files.json on the server.
+- This site is responsive and mobile-friendly. Red-themed professional design as requested.
+
+Default courses (5): Anatomy, Physiology, Microbiology, Pharmacology, Pathology
+
+Enjoy — edit and customize as needed.
+--> 
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Batch Notes Archive</title>
+  <meta name="description" content="Junior batch notes archive - download lecture & practical PDFs by course" />
+  <style>
+    /* Reset & helpers */
+    :root{
+      --red:#b71c1c;
+      --red-2:#d32f2f;
+      --bg:#fafafa;
+      --card:#ffffff;
+      --muted:#6b6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:linear-gradient(180deg, #fff 0%, #fff8f8 100%); color:#222}
+
+    /* Layout */
+    .container{max-width:1200px;margin:28px auto;padding:18px}
+    header{display:flex;align-items:center;gap:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:64px;height:64px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--red),var(--red-2));color:white;font-weight:700;font-size:20px;box-shadow:0 6px 20px rgba(183,28,28,0.12)}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .top-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+    .btn{background:var(--red);color:white;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;color:var(--red);border:2px solid rgba(183,28,28,0.12)}
+
+    /* grid */
+    .main{display:grid;grid-template-columns:320px 1fr;gap:24px;margin-top:22px}
+
+    /* Sidebar */
+    .sidebar{background:linear-gradient(180deg, rgba(183,28,28,0.03), rgba(211,47,47,0.02));padding:18px;border-radius:14px}
+    .course-list{display:flex;flex-direction:column;gap:8px}
+    .course-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer}
+    .course-item.active{background:linear-gradient(90deg,#fff, #fff);box-shadow:0 8px 24px rgba(0,0,0,0.04)}
+    .badge{background:var(--red);color:#fff;padding:6px 8px;border-radius:8px;font-size:12px}
+
+    /* Content */
+    .content-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .search{display:flex;gap:8px;align-items:center}
+    input.search-input{padding:10px 12px;border-radius:10px;border:1px solid #eee;width:320px}
+
+    /* Cards */
+    .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:18px}
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(20,20,20,0.04);display:flex;flex-direction:column;gap:10px}
+    .card .meta{display:flex;align-items:center;justify-content:space-between}
+    .card h3{margin:0;font-size:15px}
+    .meta small{color:var(--muted)}
+    .card .actions{display:flex;gap:8px}
+    .link{padding:8px 10px;border-radius:8px;border:1px solid #eee;background:transparent;cursor:pointer}
+
+    /* file list */
+    .files{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+    .file-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;border:1px solid #faf0f0}
+    .file-row .left{display:flex;align-items:center;gap:12px}
+    .file-icon{width:44px;height:44;border-radius:8px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--red),var(--red-2));color:white;font-weight:700}
+    .muted{color:var(--muted);font-size:13px}
+
+    footer{margin-top:26px;text-align:center;color:var(--muted);font-size:13px}
+
+    /* responsive */
+    @media (max-width:900px){
+      .main{grid-template-columns:1fr}
+      .sidebar{order:2}
+    }
+
+    /* subtle S-like divider on hero area */
+    .hero{position:relative;border-radius:14px;overflow:hidden;padding:18px;background:linear-gradient(90deg,#fff,#fff8f8);display:flex;gap:18px;align-items:center}
+    .hero .wave{position:absolute;right:-120px;top:-40px;width:360px;height:360px;border-radius:50%;background:linear-gradient(180deg, rgba(183,28,28,0.06), rgba(211,47,47,0.02));transform:rotate(25deg)}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">BN</div>
+        <div>
+          <h1>Batch Notes Archive</h1>
+          <p class="lead">Organized lecture & practical PDFs — easy download for juniors</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="btnShowAll">Show all files</button>
+        <button class="btn ghost" id="btnRefresh">Refresh</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <aside class="sidebar">
+        <div class="hero">
+          <div>
+            <h2 style="margin:0">Welcome, Juniors</h2>
+            <p class="muted" style="margin-top:6px">Find course-wise notes & practical sheets. Download and study!</p>
+          </div>
+          <div class="wave" aria-hidden></div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+          <strong>Courses</strong>
+          <span class="muted">5</span>
+        </div>
+
+        <div class="course-list" id="courseList" style="margin-top:10px">
+          <!-- courses injected here -->
+        </div>
+      </aside>
+
+      <section>
+        <div class="content-head">
+          <div style="display:flex;flex-direction:column">
+            <strong id="currentCourseTitle">All Files</strong>
+            <small class="muted" id="currentCourseDesc">Showing all uploaded notes</small>
+          </div>
+
+          <div class="search">
+            <input class="search-input" id="searchInput" placeholder="Search files by title or type..." />
+            <select id="filterType" style="padding:10px;border-radius:10px;border:1px solid #eee">
+              <option value="all">All types</option>
+              <option value="Lecture">Lecture</option>
+              <option value="Practical">Practical</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-cards" id="filesGrid">
+          <!-- file cards injected here -->
+        </div>
+
+        <footer>
+          Built for your junior batch • Place PDFs in <code>/assets/pdfs/&lt;course-slug&gt;/</code> and update the data list.
+        </footer>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // === Configuration ===
+    // Default courses (you can edit names or add/remove)
+    const courses = [
+      { name: 'Anatomy', slug: 'anatomy' },
+      { name: 'Physiology', slug: 'physiology' },
+      { name: 'Microbiology', slug: 'microbiology' },
+      { name: 'Pharmacology', slug: 'pharmacology' },
+      { name: 'Pathology', slug: 'pathology' }
+    ];
+
+    // filesData: edit this array when you add files.
+    // For each file, set: course (match a course name), title, filename (exact file name you uploaded), type, uploaded (optional date).
+    // Link generated: assets/pdfs/<course-slug>/<filename>
+    let filesData = [
+      // Example entries (delete these or replace with your own)
+      { course: 'Anatomy', title: 'Lecture 1 - Bone Structure', filename: 'lecture1-bones.pdf', type: 'Lecture', uploaded: '2025-05-01' },
+      { course: 'Anatomy', title: 'Practical - Bone Identification', filename: 'practical-bone-id.pdf', type: 'Practical', uploaded: '2025-05-10' },
+      { course: 'Physiology', title: 'Cardiovascular Lecture', filename: 'cardio-lecture.pdf', type: 'Lecture', uploaded: '2025-04-15' },
+      { course: 'Microbiology', title: 'Lab Sheet - Staining', filename: 'staining-practical.pdf', type: 'Practical', uploaded: '2025-03-22' }
+    ];
+
+    // === Helpers ===
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    function renderCourses(){
+      const container = document.getElementById('courseList');
+      container.innerHTML = '';
+      const allBtn = document.createElement('div');
+      allBtn.className = 'course-item active';
+      allBtn.innerHTML = `<div style="flex:1">All Files</div><div class="badge">${filesData.length}</div>`;
+      allBtn.onclick = ()=>selectCourse(null, allBtn);
+      container.appendChild(allBtn);
+
+      courses.forEach(c=>{
+        const count = filesData.filter(f=>f.course===c.name).length;
+        const el = document.createElement('div');
+        el.className = 'course-item';
+        el.innerHTML = `<div style="flex:1">${c.name}</div><div class="badge">${count}</div>`;
+        el.onclick = ()=>selectCourse(c.name, el);
+        container.appendChild(el);
+      });
+    }
+
+    let selectedCourse = null;
+    function selectCourse(courseName, el){
+      selectedCourse = courseName;
+      $$('#courseList .course-item').forEach(n=>n.classList.remove('active'));
+      el.classList.add('active');
+      $('#currentCourseTitle').textContent = courseName || 'All Files';
+      $('#currentCourseDesc').textContent = courseName ? `Showing files for ${courseName}` : 'Showing all uploaded notes';
+      renderFiles();
+    }
+
+    function renderFiles(){
+      const grid = document.getElementById('filesGrid');
+      grid.innerHTML = '';
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const typeFilter = document.getElementById('filterType').value;
+
+      const filtered = filesData.filter(f=>{
+        if(selectedCourse && f.course !== selectedCourse) return false;
+        if(typeFilter !== 'all' && f.type !== typeFilter) return false;
+        if(!q) return true;
+        return (f.title && f.title.toLowerCase().includes(q)) || (f.type && f.type.toLowerCase().includes(q));
+      });
+
+      if(filtered.length===0){
+        grid.innerHTML = `<div style="grid-column:1/-1;padding:22px;border-radius:12px;background:#fff;text-align:center;color:var(--muted)">No files found. Add PDFs to <code>/assets/pdfs/&lt;course-slug&gt;/</code> and update the data list.</div>`;
+        return;
+      }
+
+      filtered.forEach(f=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        const courseSlug = (courses.find(c=>c.name===f.course)||{slug:'other'}).slug;
+        const url = `assets/pdfs/${courseSlug}/${encodeURIComponent(f.filename)}`;
+        card.innerHTML = `
+          <div class="meta">
+            <div>
+              <h3>${escapeHtml(f.title)}</h3>
+              <small class="muted">${f.course} • ${f.type} ${f.uploaded? '• '+f.uploaded:''}</small>
+            </div>
+            <div class="actions">
+              <a class="link" href="${url}" download>Download</a>
+              <a class="link" href="${url}" target="_blank">Open</a>
+            </div>
+          </div>
+          <div class="files">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="file-icon">PDF</div>
+              <div>
+                <div style="font-weight:600">${f.filename}</div>
+                <div class="muted">Stored: ${courseSlug}/${f.filename}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function escapeHtml(s){
+      if(!s) return '';
+      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    }
+
+    // Controls
+    document.getElementById('searchInput').addEventListener('input', ()=>renderFiles());
+    document.getElementById('filterType').addEventListener('change', ()=>renderFiles());
+    document.getElementById('btnShowAll').addEventListener('click', ()=>{ selectCourse(null, $$('#courseList .course-item')[0]); });
+    document.getElementById('btnRefresh').addEventListener('click', ()=>{ location.reload(); });
+
+    // Initial render
+    renderCourses();
+    renderFiles();
+
+    // OPTIONAL: If you prefer to keep a separate files.json on the server, you can fetch it here.
+    // Example:
+    // fetch('data/files.json').then(r=>r.json()).then(d=>{ filesData = d; renderCourses(); renderFiles(); })
+
+  </script>
+</body>
+</html>
